@@ -1,18 +1,19 @@
 from dataclasses import dataclass
 from typing import Sequence
-from typing import ForwardRef
-from models.candle import Candle
-import pandas as pd
 import csv
 from datetime import datetime
-
-
+from src.candle import Candle
+import pandas as pd
 
 @dataclass
 class Chart:
     candles : Sequence[Candle]
     time_frame : str | None = None
     _indicators : dict | None = None
+
+    def __init__(self, candles : Sequence[Candle], time_frame : str | None = None):
+        self.candles = candles
+        self.time_frame = time_frame
 
     def __getitem__(self, item):
         return self.candles[item]
@@ -22,6 +23,17 @@ class Chart:
 
     def add_indicator(self, indicator_name ,indicator):
         self._indicators[indicator_name] = indicator
+
+    def to_dataframe(self):
+
+        data = [(i.datetime, i.open, i.high,i.low, i.close, self.time_frame) for i in self]
+
+        df = pd.DataFrame(
+            data= data,
+            columns=['datetime', 'open','high','low','close', 'time_frame']
+        )
+
+        return df
 
 
     @classmethod
@@ -57,9 +69,3 @@ class Chart:
                 )
                 candles.append(candle)
         return cls(candles)
-
-    #
-    # def _repr_html_(self):
-    #     import pandas as pd
-    #     df = pd.DataFrame([c.__dict__() for c in self.candles])
-    #     return df._repr_html_()
