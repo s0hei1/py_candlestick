@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Sequence
+from typing import Sequence, Iterator
 import csv
 from datetime import datetime
 from src.candle import Candle
@@ -18,7 +18,7 @@ class Chart:
     def __getitem__(self, item):
         return self.candles[item]
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[Candle]:
         return iter(self.candles)
 
     def add_indicator(self, indicator_name ,indicator):
