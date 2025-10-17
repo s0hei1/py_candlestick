@@ -1,16 +1,17 @@
+from __future__ import annotations
 from dataclasses import dataclass
-
 
 @dataclass
 class Symbol:
     base_currency: str
     quote_currency: str
-    decimal_places : float
+    decimal_places : int
+    decimal_places_value : float
     alias_names: dict[str,str] | None = None
     prefix: str = ''
     suffix: str = ''
 
-    def __init__(self, base_currency: str, quote_currency: str, decimal_places : float, /, alias_names: list[str] | None = None,
+    def __init__(self, base_currency: str, quote_currency: str, decimal_places : int, /, alias_names: list[str] | None = None,
                  prefix: str = '',
                  suffix: str = '',
                  ):
@@ -18,6 +19,7 @@ class Symbol:
         self.quote_currency = quote_currency
         self.alias_names = alias_names
         self.decimal_places = decimal_places
+        self.decimal_places_value = 1 / 10 ** decimal_places
         self.prefix = prefix
         self.suffix  = suffix
 
@@ -36,9 +38,20 @@ class Symbol:
         return self.alias_names[key]
 
     def has_currency(self, currency: str) -> bool:
-        return currency in []
+        return currency.upper() in [self.base_currency.upper(), self.quote_currency.upper()]
 
-    def __eq__(self, other: 'Symbol') -> bool:
+    def price_dif_to_pips(self, diff : float) -> int:
+        return int(diff * 10 ** self.decimal_places)
+
+    def set_suffix(self, suffix: str) -> Symbol:
+        self.suffix = suffix
+        return self
+
+    def set_prefix(self, prefix: str) -> Symbol:
+        self.prefix = prefix
+        return self
+
+    def __eq__(self, other: Symbol) -> bool:
         return (
                 self.base_currency.upper() == other.base_currency.upper() and
                 self.quote_currency.upper() == other.quote_currency.upper())
@@ -59,5 +72,8 @@ class Symbol:
 
     def __iter__(self):
         return iter((self.base_currency,self.quote_currency))
+
+
+
 
 

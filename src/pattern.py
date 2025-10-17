@@ -1,12 +1,13 @@
+from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import Sequence
-
-from src import Symbol, Candle, TimeFrame
+from .symbol import Symbol
+from .candle import Candle
+from .time_frame import TimeFrame
 
 
 @dataclass
 class Pattern:
     symbol : Symbol
-    candles : Sequence[Candle]
+    candles : Iterable[Candle]
     timestamp : TimeFrame
 

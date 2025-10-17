@@ -1,18 +1,10 @@
-from datetime import datetime
-from typing import Callable, Sequence, Tuple
-from src.candle import Candle
+from dataclasses import dataclass
+from typing import Sequence
 
-IndicatorValue = Tuple[datetime, float | None]
-CalculatorMethod = Callable[[Sequence[Candle]],Sequence[IndicatorValue]]
+@dataclass
+class Indicator:
+    name : str
+    values : Sequence[float]
 
-class BaseIndicator:
-
-    def __init__(self,indicator_name : str,calculate_method : CalculatorMethod):
-        self.indicator_name = indicator_name
-        self.calculate_method = calculate_method
-
-
-    def calculate(self, candles : Sequence[Candle]) -> Sequence[IndicatorValue]:
-        result = self.calculate_method(candles)
-
-        return result
+    def __len__(self):
+        return len(self.values)

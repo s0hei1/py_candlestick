@@ -1,18 +1,21 @@
-from src.chart import Chart
-from src.time_frame import TimeFrame
-from src.candle import Candle
-from src.symbol import Symbol
-from src.defaults import DefaultTimeFrames,DefaultSymbols
-from src.indicator import BaseIndicator
-from src.pattern import Pattern
+from .chart import Chart
+from .defaults import ClassicFractalTimeFrames, DefaultSymbols
+from .indicator import Indicator
+from .pattern import Pattern
+from .time_frame import TimeFrame
+from .candle import Candle
+from .symbol import Symbol
+from .volume import Volume
 
 __all__ = [
     'Chart',
     'Candle',
     'TimeFrame',
     'Symbol',
-    'DefaultTimeFrames',
+    'ClassicFractalTimeFrames',
     'DefaultSymbols',
-    'BaseIndicator',
+    'Indicator',
     'Pattern',
+    'Volume',
 ]
+
