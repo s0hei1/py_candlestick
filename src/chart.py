@@ -10,29 +10,58 @@ import pandas as pd
 import numpy as np
 from .indicator import Indicator
 from more_itertools import last
+from operator import attrgetter
 
 OnChartUpdate: TypeAlias = Callable[[Iterable[Candle]], Any]
+
 
 @dataclass
 class Chart:
     candles: Iterable[Candle]
     indicators_name: list[str]
     timeframe: TimeFrame | None = None
-    symbol : Symbol | None = None
+    symbol: Symbol | None = None
     on_chart_update: OnChartUpdate | None = None
 
     def __init__(self,
-                 candles: Sequence[Candle],
+                 data: Sequence[Candle] | Chart,
                  timeframe: TimeFrame | None = None,
                  on_chart_update: OnChartUpdate | None = None,
                  symbol: Symbol | None = None,
                  ):
-        self.candles = candles
+
+        # if isinstance(data, Chart):
+        #     self = data
+
+
+
+        self.candles = data
         self.timeframe = timeframe
         self.on_chart_update = on_chart_update
         self.symbol = symbol
-
         self.indicators_name = []
+
+    def split(self, left_size: float, right_size: float):
+        if left_size + right_size != 1:
+            raise ValueError(f'left_size and right_size must be equal to one')
+
+        left_candles = left_size * len(self.candles)
+
+        left_chart = Chart(
+            data=self.candles[:left_candles],
+            timeframe=self.timeframe,
+            on_chart_update=self.on_chart_update,
+            symbol=self.symbol,
+        )
+
+        right_candles = Chart(
+            data=self.candles[left_candles:],
+            timeframe=self.timeframe,
+            on_chart_update=self.on_chart_update,
+            symbol=self.symbol,
+        )
+
+        return left_chart, right_candles
 
     def add_indicator(self, indicator: Indicator):
 
@@ -44,13 +73,12 @@ class Chart:
 
         setattr(self, indicator.name, indicator.values)
 
-    def to_dataframe(self):
-
-        data = [(i.date_time, i.open, i.high, i.low, i.close, self.timeframe.name) for i in self.candles]
+    def to_dataframe(self, as_datetime=False):
+        data = [(i.timestamp, i.open, i.high, i.low, i.close, self.timeframe.name) for i in self.candles]
 
         df = pd.DataFrame(
             data=data,
-            columns=['datetime', 'open', 'high', 'low', 'close', 'timeframe']
+            columns=['timestamp', 'open', 'high', 'low', 'close', 'timeframe']
         )
 
         return df
@@ -121,9 +149,9 @@ class Chart:
         return cls(candles)
 
     @classmethod
-    def from_mt5_data(cls, data: NDArray[tuple],symbol : Symbol, timeframe: TimeFrame) -> Chart:
+    def from_mt5_data(cls, data: NDArray[tuple], symbol: Symbol, timeframe: TimeFrame) -> Chart:
         return Chart(
-            candles=[Candle(
+            data=[Candle(
                 timestamp=i[0],
                 open=i[1],
                 high=i[2],
@@ -168,7 +196,7 @@ class Chart:
     def __len__(self):
         return len([i for i in self.candles])
 
-    def __add__(self, other : Chart) -> Chart:
+    def __add__(self, other: Chart) -> Chart:
         self.update_chart(other.candles)
         return self
-
+    # def __

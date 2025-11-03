@@ -64,10 +64,16 @@ class ClassicFractalTimeFrames:
 
 
 class DefaultSymbols:
-    eur_usd : Symbol = Symbol("EUR", "USD", 4)
+
     btc_usd : Symbol = Symbol("BTC", "USD", 0)
+
+    eur_usd : Symbol = Symbol("EUR", "USD", 4)
     gbp_usd : Symbol = Symbol("GBP", "USD", 4)
     aud_usd : Symbol = Symbol("AUD", "USD", 4)
+    usd_jpy : Symbol = Symbol("USD", "JPY", 2)
+    usd_chf : Symbol = Symbol("USD", "CHF", 4)
+    nzd_usd : Symbol = Symbol("NZD", "USD", 4)
+    usd_cad : Symbol = Symbol("USD", "CAD", 4)
 
     @classmethod
     def get_symbols(cls) -> list[Symbol]:

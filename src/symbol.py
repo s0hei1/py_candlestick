@@ -73,6 +73,8 @@ class Symbol:
     def __iter__(self):
         return iter((self.base_currency,self.quote_currency))
 
+    def __hash__(self):
+        return hash((self.base_currency, self.quote_currency))
 
 
 
