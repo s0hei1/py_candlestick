@@ -1,67 +1,64 @@
 from __future__ import annotations
-from dataclasses import dataclass
-from typing import Sequence, Any, Callable, TypeAlias, Iterable
+from dataclasses import dataclass, asdict
+from typing import Sequence, Any, Callable, TypeAlias, Iterable, List
 import csv
 from numpy._typing import NDArray
-from .time_frame import TimeFrame
-from .symbol import Symbol
-from .candle import Candle
+from src.series import Indicator, Series
+from src.time_frame import TimeFrame
+from src.symbol import Symbol
+from src.candle import Candle
 import pandas as pd
 import numpy as np
-from .indicator import Indicator
 from more_itertools import last
-from operator import attrgetter
 
-OnChartUpdate: TypeAlias = Callable[[Iterable[Candle]], Any]
+Candles : TypeAlias = Sequence[Candle]
+OnChartUpdate: TypeAlias = Callable[[Candles], Any]
+IndicatorCalculator = Callable[[Candles], Indicator]
 
+def candles_to_series(candles : Sequence[Candle]) -> tuple[Series, ...]:
+    timestamps = []
+    opens = []
+    highs = []
+    lows = []
+    closes = []
+    volumes = []
 
-@dataclass
+    for candle in candles:
+        timestamps.append(candle.timestamp)
+        opens.append(candle.open)
+        highs.append(candle.high)
+        lows.append(candle.low)
+        closes.append(candle.close)
+        volumes.append(candle.volume)
+
+    return (
+        Series(name = 'timestamp', values= np.array(timestamps)),
+        Series(name = 'open', values= np.array(opens)),
+        Series(name = 'high', values= np.array(highs)),
+        Series(name = 'low', values= np.array(lows)),
+        Series(name = 'close', values= np.array(closes)),
+        Series(name = 'volume', values= np.array(volumes)),
+    )
+
+@dataclass(init=False)
 class Chart:
-    candles: Iterable[Candle]
-    indicators_name: list[str]
+    candles: Candles
+    indicators: list[Indicator]
     timeframe: TimeFrame | None = None
     symbol: Symbol | None = None
     on_chart_update: OnChartUpdate | None = None
 
     def __init__(self,
-                 data: Sequence[Candle] | Chart,
+                 candles: Candles,
                  timeframe: TimeFrame | None = None,
                  on_chart_update: OnChartUpdate | None = None,
                  symbol: Symbol | None = None,
                  ):
-
-        # if isinstance(data, Chart):
-        #     self = data
-
-
-
-        self.candles = data
+        self.candles = candles
         self.timeframe = timeframe
         self.on_chart_update = on_chart_update
         self.symbol = symbol
-        self.indicators_name = []
-
-    def split(self, left_size: float, right_size: float):
-        if left_size + right_size != 1:
-            raise ValueError(f'left_size and right_size must be equal to one')
-
-        left_candles = left_size * len(self.candles)
-
-        left_chart = Chart(
-            data=self.candles[:left_candles],
-            timeframe=self.timeframe,
-            on_chart_update=self.on_chart_update,
-            symbol=self.symbol,
-        )
-
-        right_candles = Chart(
-            data=self.candles[left_candles:],
-            timeframe=self.timeframe,
-            on_chart_update=self.on_chart_update,
-            symbol=self.symbol,
-        )
-
-        return left_chart, right_candles
+        self.indicators = []
 
     def add_indicator(self, indicator: Indicator):
 
@@ -73,27 +70,37 @@ class Chart:
 
         setattr(self, indicator.name, indicator.values)
 
-    def to_dataframe(self, as_datetime=False):
-        data = [(i.timestamp, i.open, i.high, i.low, i.close, self.timeframe.name) for i in self.candles]
+    def to_dataframe(self, include_timeframe : bool = False, include_symbol : bool = False) -> pd.DataFrame:
+        series = list(candles_to_series(self.candles)) + self.indicators
 
-        df = pd.DataFrame(
-            data=data,
-            columns=['timestamp', 'open', 'high', 'low', 'close', 'timeframe']
-        )
+        data = [s.values.ravel() for s in series]
+        columns = [s.name for s in series]
 
-        return df
+        print(columns)
+        print(len(data[0]))
 
-    def separate_ochl(self, to_ndarray: bool = False) -> tuple[
-                                                             np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray] | \
-                                                         Sequence[tuple[float, float, float, float, float]]:
-        data = [(i.open, i.close, i.high, i.low, i.timestamp) for i in self.candles]
+        return pd.DataFrame(data)
 
-        if to_ndarray:
-            arr = np.array(data, dtype=float)
-            opens, closes, highs, lows, times = arr.T
-            return (opens, closes, highs, lows, times)
+        # df = pd.DataFrame(
+        #     data=data,
+        #     columns=columns
+        # )
 
-        return data
+        # if include_symbol:
+        #     df['symbol'] = self.timeframe.name
+        #
+        # if include_timeframe:
+        #     df['timeframe'] = self.symbol.symbol_name
+        #
+        #
+        # return df
+
+    def to_ndarray(self,) -> np.ndarray:
+        data = [candle.as_tuple for candle in self.candles]
+
+        arr = np.array(data + self.indicators, dtype=float)
+
+        return arr
 
     def update_chart(self, new_candles: Iterable[Candle]) -> None:
 
@@ -162,33 +169,13 @@ class Chart:
             symbol=symbol,
         )
 
-    def __setattr__(self, key, value):
-        if not hasattr(self, "indicators_name"):
-            super().__setattr__("indicators_name", [])
+    def __getitem__(self, input : str | slice):
 
-        if isinstance(value, Indicator):
-            self.indicators_name.append(key)
+        if isinstance(input, str):
+            return self.asdict()[input]
 
-        super().__setattr__(key, value)
-
-    def __delattr__(self, key):
-        if hasattr(self, key) and isinstance(getattr(self, key), Indicator):
-            if key in self.indicators_name:
-                self.indicators_name.remove(key)
-
-        super().__delattr__(key)
-
-    def __getitem__(self, col_name: str):
-
-        if col_name in Candle.get_annotations():
-            data = [getattr(i, col_name) for i in self.candles]
-            return np.array(data, dtype=float)
-
-        if hasattr(self, col_name) and isinstance(getattr(self, col_name), Indicator):
-            indicator: Indicator = getattr(self, col_name)
-            return indicator.values
-
-        raise Exception("your provided col name is not exists")
+        if isinstance(input, slice):
+            return self.candles[slice]
 
     def __iter__(self):
         return iter(self.candles)
@@ -199,4 +186,3 @@ class Chart:
     def __add__(self, other: Chart) -> Chart:
         self.update_chart(other.candles)
         return self
-    # def __
