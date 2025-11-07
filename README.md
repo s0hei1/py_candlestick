@@ -1,3 +1,5 @@
+<img width="1280" height="640" alt="Untitled" src="https://github.com/user-attachments/assets/23226603-89aa-4819-a11b-1e902a5d2da4" />
+
 # 📈 Candlestick Library
 
 Candlestick is a high‑performance, strongly‑typed Python library for working with financial chart data — including candlesticks (OHLCV) and indicators. Designed with flexibility and performance in mind, it integrates seamlessly with Pandas, NumPy, and other data‑science tools.
