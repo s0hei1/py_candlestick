@@ -4,10 +4,10 @@ from typing import Sequence, Any, Callable, TypeAlias, Iterable, List
 import csv
 from docutils.nodes import warning
 from numpy._typing import NDArray
-from src.series import Indicator, Series
-from src.time_frame import TimeFrame
-from src.symbol import Symbol
-from src.candle import Candle
+from py_candlestick.series import Indicator, Series
+from py_candlestick.time_frame import TimeFrame
+from py_candlestick.symbol import Symbol
+from py_candlestick.candle import Candle
 import pandas as pd
 import numpy as np
 from more_itertools import last

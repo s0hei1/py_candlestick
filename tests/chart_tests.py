@@ -2,7 +2,7 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-from src import Chart, ClassicFractalTimeFrames, DefaultSymbols, Candle
+from py_candlestick import Chart, ClassicFractalTimeFrames, DefaultSymbols, Candle
 from tests.fixtures import candle_dict, candle, candles
 import datetime as dt
 from more_itertools import last, first

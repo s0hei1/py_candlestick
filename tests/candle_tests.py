@@ -1,5 +1,5 @@
 import pytest
-from src.candle import Candle
+from py_candlestick.candle import Candle
 from tests.fixtures import candle_dict,candle
 import datetime as dt
 

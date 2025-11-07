@@ -1,4 +1,24 @@
 [build-system]
-requires = ["setuptools>=42", "wheel"]
+requires = ["setuptools", "wheel"]
 build-backend = "setuptools.build_meta"
 
+[project]
+name = "py_candlestick"
+version = "0.1.0"
+authors = [
+  { name="Soheil Hesari Khosroshahi", email="khosroshahisoheil@gmail.com" }
+]
+description = "A pythonic package for working with market data"
+readme = "README.md"
+requires-python = ">=3.7"
+license = {file = "LICENSE"}
+
+dependencies = [
+    "more-itertools",
+    "numpy",
+    "pandas",
+    "MetaTrader5"
+]
+
+[project.urls]
+Homepage = "https://github.com/s0hei1/py_candlestick"

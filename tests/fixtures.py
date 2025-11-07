@@ -1,7 +1,7 @@
 import pytest
 import random
 import datetime as dt
-from src import Candle
+from py_candlestick import Candle
 
 @pytest.fixture
 def sample_df(df_size=200):
