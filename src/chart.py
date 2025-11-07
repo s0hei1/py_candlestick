@@ -2,6 +2,7 @@ from __future__ import annotations
 from dataclasses import dataclass, asdict
 from typing import Sequence, Any, Callable, TypeAlias, Iterable, List
 import csv
+from docutils.nodes import warning
 from numpy._typing import NDArray
 from src.series import Indicator, Series
 from src.time_frame import TimeFrame
@@ -10,12 +11,14 @@ from src.candle import Candle
 import pandas as pd
 import numpy as np
 from more_itertools import last
+import warnings
 
-Candles : TypeAlias = Sequence[Candle]
+Candles: TypeAlias = List[Candle]
 OnChartUpdate: TypeAlias = Callable[[Candles], Any]
 IndicatorCalculator = Callable[[Candles], Indicator]
 
-def candles_to_series(candles : Sequence[Candle]) -> tuple[Series, ...]:
+
+def candles_to_series(candles: Sequence[Candle]) -> tuple[Series, ...]:
     timestamps = []
     opens = []
     highs = []
@@ -32,13 +35,14 @@ def candles_to_series(candles : Sequence[Candle]) -> tuple[Series, ...]:
         volumes.append(candle.volume)
 
     return (
-        Series(name = 'timestamp', values= np.array(timestamps)),
-        Series(name = 'open', values= np.array(opens)),
-        Series(name = 'high', values= np.array(highs)),
-        Series(name = 'low', values= np.array(lows)),
-        Series(name = 'close', values= np.array(closes)),
-        Series(name = 'volume', values= np.array(volumes)),
+        Series(name='timestamp', values=np.array(timestamps)),
+        Series(name='open', values=np.array(opens)),
+        Series(name='high', values=np.array(highs)),
+        Series(name='low', values=np.array(lows)),
+        Series(name='close', values=np.array(closes)),
+        Series(name='volume', values=np.array(volumes)),
     )
+
 
 @dataclass(init=False)
 class Chart:
@@ -53,12 +57,16 @@ class Chart:
                  timeframe: TimeFrame | None = None,
                  on_chart_update: OnChartUpdate | None = None,
                  symbol: Symbol | None = None,
+                 indicator_calculators: list[IndicatorCalculator] | None = None
                  ):
         self.candles = candles
         self.timeframe = timeframe
         self.on_chart_update = on_chart_update
         self.symbol = symbol
-        self.indicators = []
+        if indicator_calculators is not None:
+            self.indicators = [clc(candles) for clc in indicator_calculators]
+        else:
+            self.indicators = []
 
     def add_indicator(self, indicator: Indicator):
 
@@ -70,39 +78,35 @@ class Chart:
 
         setattr(self, indicator.name, indicator.values)
 
-    def to_dataframe(self, include_timeframe : bool = False, include_symbol : bool = False) -> pd.DataFrame:
+    def to_dataframe(self, include_timeframe: bool = False, include_symbol: bool = False) -> pd.DataFrame:
         series = list(candles_to_series(self.candles)) + self.indicators
-
-        data = [s.values.ravel() for s in series]
+        data = np.column_stack([s.values for s in series])
         columns = [s.name for s in series]
 
-        print(columns)
-        print(len(data[0]))
+        df = pd.DataFrame(
+            data=data,
+            columns=columns
+        )
 
-        return pd.DataFrame(data)
+        if self.timeframe is not None and include_timeframe:
+            df['timeframe'] = self.timeframe.name
+        elif self.timeframe is None and include_timeframe:
+            warnings.warn("the object time frame is none !")
 
-        # df = pd.DataFrame(
-        #     data=data,
-        #     columns=columns
-        # )
+        if self.symbol is not None and include_symbol:
+            df['symbol'] = self.symbol.symbol_name
+        elif self.symbol is None and include_symbol:
+            warnings.warn("the object symbol is none !")
 
-        # if include_symbol:
-        #     df['symbol'] = self.timeframe.name
-        #
-        # if include_timeframe:
-        #     df['timeframe'] = self.symbol.symbol_name
-        #
-        #
-        # return df
+        return df
 
-    def to_ndarray(self,) -> np.ndarray:
-        data = [candle.as_tuple for candle in self.candles]
+    def to_ndarray(self, ) -> np.ndarray:
+        series = list(candles_to_series(self.candles)) + self.indicators
+        return np.column_stack([s.values for s in series])
 
-        arr = np.array(data + self.indicators, dtype=float)
-
-        return arr
-
-    def update_chart(self, new_candles: Iterable[Candle]) -> None:
+    def update_chart(self, new_candles: Sequence[Candle]) -> None:
+        if not isinstance(new_candles, Sequence):
+            raise TypeError("new_candles must be a Sequence")
 
         if new_candles is None or new_candles == []:
             return None
@@ -112,8 +116,11 @@ class Chart:
         last_candle = last(candles)
         new_candles_for_add = [i for i in new_candles if i.date_time > last_candle.date_time]
 
-        for candle in new_candles_for_add:
-            candles.append(candle)
+        if new_candles_for_add == []:
+            return None
+
+        new_candles_for_add.sort(key=lambda x: x.timestamp)
+        self.candles = self.candles + new_candles_for_add
 
         self.candles = candles
 
@@ -121,7 +128,11 @@ class Chart:
             self.on_chart_update(self.candles)
 
     @classmethod
-    def from_pd_dataframe(cls, data_frame: pd.DataFrame) -> 'Chart':
+    def from_pd_dataframe(cls,
+                          data_frame: pd.DataFrame,
+                          timeframe: TimeFrame | None = None,
+                          symbol: Symbol | None = None,
+                          ) -> Chart:
         candles = []
 
         for i, row in data_frame.iterrows():
@@ -131,51 +142,52 @@ class Chart:
                 high=row['high'],
                 low=row['low'],
                 close=row['close'],
+                volume=row['volume'],
             )
             candles.append(candle)
 
-        return cls(candles)
+        return cls(candles, timeframe= timeframe,symbol= symbol)
 
     @classmethod
-    def from_csv(cls, file_path: str) -> Chart:
+    def from_csv(cls, file_path: str,
+                 timeframe: TimeFrame | None = None,
+                 symbol: Symbol | None = None,
+                 ) -> Chart:
         candles = []
         with open(file_path, newline='') as csvfile:
             reader = csv.reader(csvfile)
             next(reader)  # Skip header row
             for row in reader:
-                timestamp, open_, high, low, close = row
+                timestamp, open_, high, low, close, volume = row
 
                 candle = Candle(
                     open=float(open_),
                     high=float(high),
                     low=float(low),
                     close=float(close),
-                    timestamp=int(timestamp)
+                    timestamp=float(timestamp),
+                    volume=float(volume)
                 )
                 candles.append(candle)
-        return cls(candles)
+        return cls(candles = candles,timeframe = timeframe, symbol = symbol )
 
     @classmethod
     def from_mt5_data(cls, data: NDArray[tuple], symbol: Symbol, timeframe: TimeFrame) -> Chart:
         return Chart(
-            data=[Candle(
+            candles=[Candle(
                 timestamp=i[0],
                 open=i[1],
                 high=i[2],
                 low=i[3],
-                close=i[4]
+                close=i[4],
+                volume=i[5]
             ) for i in data],
             timeframe=timeframe,
             symbol=symbol,
         )
 
-    def __getitem__(self, input : str | slice):
-
-        if isinstance(input, str):
-            return self.asdict()[input]
-
-        if isinstance(input, slice):
-            return self.candles[slice]
+    def __getitem__(self, input: str | slice):
+        return self.candles.__getitem__(input)
 
     def __iter__(self):
         return iter(self.candles)
@@ -186,3 +198,4 @@ class Chart:
     def __add__(self, other: Chart) -> Chart:
         self.update_chart(other.candles)
         return self
+
