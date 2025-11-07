@@ -2,7 +2,6 @@ from __future__ import annotations
 from dataclasses import dataclass, asdict
 from typing import Sequence, Any, Callable, TypeAlias, Iterable, List
 import csv
-from docutils.nodes import warning
 from numpy._typing import NDArray
 from py_candlestick.series import Indicator, Series
 from py_candlestick.time_frame import TimeFrame
