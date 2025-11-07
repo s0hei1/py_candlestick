@@ -10,6 +10,11 @@ Whether you're building backtesting engines, streaming chart visualizations, or 
 
 ## 🚀 Quick Start
 
+
+```bash
+pip install py_candlestick
+```
+
 ```python
 from py_candlestick import Chart, Candle
 
